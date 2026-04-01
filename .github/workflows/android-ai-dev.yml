@@ -26,7 +26,7 @@ jobs:
       - name: Генерация кода (OpenRouter)
         id: ai
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ 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 }}
         run: |
           CLEAN_PROMPT=$(echo '${{ inputs.prompt }}' | sed -e 's/"/\\"/g')
           SYSTEM="Ты — Senior Android Developer. Возвращай ТОЛЬКО валидный JSON. Формат: {\"files\":[{\"path\":\"app/src/main/...\",\"content\":\"...\"}]}. Никакого маркдауна, пояснений или текста вне JSON."
