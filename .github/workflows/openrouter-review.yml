@@ -28,7 +28,7 @@ jobs:
             -H "HTTP-Referer: https://github.com/${{ github.repository }}" \
             -H "X-Title: ${{ github.workflow }}" \
             -d '{
-              "model": "mistralai/mistral-7b-instruct:free",
+              "model": "qwen/qwen3.6-plus-preview:free",
               "messages": [
                 { "role": "system", "content": "Ты ревьюер кода. На русском языке." },
                 { "role": "user", "content": "Проанализируй изменения:\n\n$(cat /tmp/changes.txt)\n" }
