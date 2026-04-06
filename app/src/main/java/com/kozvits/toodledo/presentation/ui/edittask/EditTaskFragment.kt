@@ -13,7 +13,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.navigation.fragment.navArgs
 import com.google.android.material.snackbar.Snackbar
 import com.kozvits.toodledo.R
 import com.kozvits.toodledo.databinding.FragmentEditTaskBinding
@@ -30,11 +29,13 @@ class EditTaskFragment : Fragment() {
     private var _binding: FragmentEditTaskBinding? = null
     private val binding get() = _binding!!
     private val viewModel: EditTaskViewModel by viewModels()
-    private val args: EditTaskFragmentArgs by navArgs()
 
-    private var suppressTextWatcher = false
+    /** taskId передаётся через Bundle (ключ "taskId"), 0 = новая задача */
+    private val taskId: Long get() = arguments?.getLong("taskId", 0L) ?: 0L
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentEditTaskBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -44,7 +45,7 @@ class EditTaskFragment : Fragment() {
         setupMenu()
         setupInputListeners()
         observeViewModel()
-        viewModel.loadTask(args.taskId)
+        viewModel.loadTask(taskId)
     }
 
     private fun setupMenu() {
@@ -72,73 +73,65 @@ class EditTaskFragment : Fragment() {
         // Priority spinner
         val priorities = Priority.entries.filter { it != Priority.TOP }
         binding.spinnerPriority.adapter = ArrayAdapter(
-            requireContext(), R.layout.item_spinner_dark,
-            priorities.map { it.label }
+            requireContext(), R.layout.item_spinner_dark, priorities.map { it.label }
         )
-        binding.spinnerPriority.setSelection(priorities.indexOf(Priority.NONE))
-        binding.spinnerPriority.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                viewModel.updatePriority(priorities[pos])
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        binding.spinnerPriority.setSelection(priorities.indexOfFirst { it == Priority.NONE }.coerceAtLeast(0))
+        binding.spinnerPriority.onItemSelectedListener = simpleItemSelected { pos ->
+            viewModel.updatePriority(priorities[pos])
         }
 
         // Status spinner
         val statuses = TaskStatus.entries
         binding.spinnerStatus.adapter = ArrayAdapter(
-            requireContext(), R.layout.item_spinner_dark,
-            statuses.map { it.label }
+            requireContext(), R.layout.item_spinner_dark, statuses.map { it.label }
         )
-        binding.spinnerStatus.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                viewModel.updateStatus(statuses[pos])
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        binding.spinnerStatus.onItemSelectedListener = simpleItemSelected { pos ->
+            viewModel.updateStatus(statuses[pos])
         }
 
         // Repeat spinner
         val repeats = RepeatType.entries
         binding.spinnerRepeat.adapter = ArrayAdapter(
-            requireContext(), R.layout.item_spinner_dark,
-            repeats.map { it.label }
+            requireContext(), R.layout.item_spinner_dark, repeats.map { it.label }
         )
-        binding.spinnerRepeat.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                viewModel.updateRepeat(repeats[pos])
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        binding.spinnerRepeat.onItemSelectedListener = simpleItemSelected { pos ->
+            viewModel.updateRepeat(repeats[pos])
         }
 
-        // Due date picker
         binding.btnDueDate.setOnClickListener { showDatePicker { ts -> viewModel.updateDueDate(ts) } }
         binding.btnStartDate.setOnClickListener { showDatePicker { ts -> viewModel.updateStartDate(ts) } }
     }
 
+    private fun simpleItemSelected(onSelected: (Int) -> Unit) =
+        object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) =
+                onSelected(pos)
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
+
     private fun showDatePicker(onDate: (Long) -> Unit) {
         val cal = Calendar.getInstance()
         DatePickerDialog(requireContext(), { _, y, m, d ->
-            cal.set(y, m, d, 0, 0, 0)
-            cal.set(Calendar.MILLISECOND, 0)
+            cal.set(y, m, d, 0, 0, 0); cal.set(Calendar.MILLISECOND, 0)
             onDate(cal.timeInMillis / 1000L)
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
     private fun observeViewModel() {
+        var suppressWatcher = false
+
         viewModel.task.observe(viewLifecycleOwner) { task ->
-            suppressTextWatcher = true
-            if (binding.editTitle.text.toString() != task.title)
-                binding.editTitle.setText(task.title)
-            if (binding.editNote.text.toString() != task.note)
-                binding.editNote.setText(task.note)
-            if (binding.editTags.text.toString() != task.tag)
-                binding.editTags.setText(task.tag)
+            suppressWatcher = true
+            if (binding.editTitle.text.toString() != task.title) binding.editTitle.setText(task.title)
+            if (binding.editNote.text.toString() != task.note) binding.editNote.setText(task.note)
+            if (binding.editTags.text.toString() != task.tag) binding.editTags.setText(task.tag)
             binding.switchStar.isChecked = task.star
             binding.switchHot.isChecked = task.isHot
-            binding.btnDueDate.text = if (task.dueDate > 0) formatDate(task.dueDate)
-                else getString(R.string.no_date)
-            binding.btnStartDate.text = if (task.startDate > 0) formatDate(task.startDate)
-                else getString(R.string.no_date)
-            suppressTextWatcher = false
+            binding.btnDueDate.text =
+                if (task.dueDate > 0) formatDate(task.dueDate) else getString(R.string.no_date)
+            binding.btnStartDate.text =
+                if (task.startDate > 0) formatDate(task.startDate) else getString(R.string.no_date)
+            suppressWatcher = false
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -146,15 +139,29 @@ class EditTaskFragment : Fragment() {
                 launch {
                     viewModel.folders.collect { folders ->
                         val names = listOf(getString(R.string.no_folder)) + folders.map { it.name }
-                        binding.spinnerFolder.adapter = ArrayAdapter(
-                            requireContext(), R.layout.item_spinner_dark, names)
+                        val adapter = ArrayAdapter(requireContext(), R.layout.item_spinner_dark, names)
+                        binding.spinnerFolder.adapter = adapter
+                        binding.spinnerFolder.onItemSelectedListener = simpleItemSelected { pos ->
+                            if (pos == 0) viewModel.updateFolder(0L, "")
+                            else {
+                                val f = folders[pos - 1]
+                                viewModel.updateFolder(f.id, f.name)
+                            }
+                        }
                     }
                 }
                 launch {
                     viewModel.contexts.collect { contexts ->
                         val names = listOf(getString(R.string.no_context)) + contexts.map { it.name }
-                        binding.spinnerContext.adapter = ArrayAdapter(
-                            requireContext(), R.layout.item_spinner_dark, names)
+                        val adapter = ArrayAdapter(requireContext(), R.layout.item_spinner_dark, names)
+                        binding.spinnerContext.adapter = adapter
+                        binding.spinnerContext.onItemSelectedListener = simpleItemSelected { pos ->
+                            if (pos == 0) viewModel.updateContext(0L, "")
+                            else {
+                                val c = contexts[pos - 1]
+                                viewModel.updateContext(c.id, c.name)
+                            }
+                        }
                     }
                 }
             }

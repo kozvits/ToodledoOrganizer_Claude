@@ -9,51 +9,19 @@
         android:id="@+id/taskListFragment"
         android:name="com.kozvits.toodledo.presentation.ui.tasklist.TaskListFragment"
         android:label="@string/nav_tasks"
-        tools:layout="@layout/fragment_task_list">
-
-        <action
-            android:id="@+id/actionTaskListToEditTask"
-            app:destination="@id/editTaskFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:exitAnim="@anim/slide_out_left"
-            app:popEnterAnim="@anim/slide_in_left"
-            app:popExitAnim="@anim/slide_out_right" />
-
-        <argument
-            android:name="taskId"
-            app:argType="long"
-            android:defaultValue="0" />
-
-    </fragment>
+        tools:layout="@layout/fragment_task_list" />
 
     <fragment
         android:id="@+id/hotListFragment"
         android:name="com.kozvits.toodledo.presentation.ui.hotlist.HotListFragment"
         android:label="@string/hot_list"
-        tools:layout="@layout/fragment_hot_list">
-
-        <action
-            android:id="@+id/actionHotListToEditTask"
-            app:destination="@id/editTaskFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:exitAnim="@anim/slide_out_left"
-            app:popEnterAnim="@anim/slide_in_left"
-            app:popExitAnim="@anim/slide_out_right" />
-
-    </fragment>
+        tools:layout="@layout/fragment_hot_list" />
 
     <fragment
         android:id="@+id/editTaskFragment"
         android:name="com.kozvits.toodledo.presentation.ui.edittask.EditTaskFragment"
         android:label="@string/edit_task"
-        tools:layout="@layout/fragment_edit_task">
-
-        <argument
-            android:name="taskId"
-            app:argType="long"
-            android:defaultValue="0" />
-
-    </fragment>
+        tools:layout="@layout/fragment_edit_task" />
 
     <fragment
         android:id="@+id/settingsFragment"

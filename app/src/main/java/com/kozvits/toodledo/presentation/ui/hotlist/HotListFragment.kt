@@ -2,9 +2,7 @@ package com.kozvits.toodledo.presentation.ui.hotlist
 
 import android.os.Bundle
 import android.view.*
-import android.widget.ArrayAdapter
-import androidx.core.view.MenuHost
-import androidx.core.view.MenuProvider
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -15,7 +13,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.kozvits.toodledo.R
 import com.kozvits.toodledo.databinding.FragmentHotListBinding
-import com.kozvits.toodledo.domain.model.*
+import com.kozvits.toodledo.domain.model.SortField
+import com.kozvits.toodledo.domain.model.SortOrder
 import com.kozvits.toodledo.presentation.adapter.TaskAdapter
 import com.kozvits.toodledo.presentation.viewmodel.HotListViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,7 +28,9 @@ class HotListFragment : Fragment() {
     private val viewModel: HotListViewModel by viewModels()
     private lateinit var taskAdapter: TaskAdapter
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentHotListBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -41,12 +42,14 @@ class HotListFragment : Fragment() {
         observeViewModel()
     }
 
+    private fun navigateToEdit(taskId: Long) {
+        val bundle = bundleOf("taskId" to taskId)
+        findNavController().navigate(R.id.editTaskFragment, bundle)
+    }
+
     private fun setupRecyclerView() {
         taskAdapter = TaskAdapter(
-            onTaskClick = { task ->
-                val action = HotListFragmentDirections.actionHotListToEditTask(task.id)
-                findNavController().navigate(action)
-            },
+            onTaskClick = { task -> navigateToEdit(task.id) },
             onCheckClick = { task -> viewModel.completeTask(task.id) }
         )
         binding.recyclerView.apply {
@@ -59,41 +62,35 @@ class HotListFragment : Fragment() {
         val fields = SortField.entries
         val fieldNames = fields.map { it.label }.toTypedArray()
 
+        fun showSortDialog(title: String, onSelected: (SortField, SortOrder) -> Unit) {
+            var idx = 0
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(title)
+                .setSingleChoiceItems(fieldNames, 0) { _, i -> idx = i }
+                .setNeutralButton("↓ DESC") { _, _ -> onSelected(fields[idx], SortOrder.DESC) }
+                .setPositiveButton("↑ ASC")  { _, _ -> onSelected(fields[idx], SortOrder.ASC) }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+
         binding.btnSort1.setOnClickListener {
-            showSortDialog(getString(R.string.sort_primary), fieldNames) { idx, order ->
-                viewModel.setSort1(fields[idx], order)
-                binding.btnSort1.text = "${fields[idx].label} ${if (order == SortOrder.DESC) "↓" else "↑"}"
+            showSortDialog(getString(R.string.sort_primary)) { field, order ->
+                viewModel.setSort1(field, order)
+                binding.btnSort1.text = "${field.label} ${if (order == SortOrder.DESC) "↓" else "↑"}"
             }
         }
         binding.btnSort2.setOnClickListener {
-            showSortDialog(getString(R.string.sort_secondary), fieldNames) { idx, order ->
-                viewModel.setSort2(fields[idx], order)
-                binding.btnSort2.text = "${fields[idx].label} ${if (order == SortOrder.DESC) "↓" else "↑"}"
+            showSortDialog(getString(R.string.sort_secondary)) { field, order ->
+                viewModel.setSort2(field, order)
+                binding.btnSort2.text = "${field.label} ${if (order == SortOrder.DESC) "↓" else "↑"}"
             }
         }
         binding.btnSort3.setOnClickListener {
-            showSortDialog(getString(R.string.sort_tertiary), fieldNames) { idx, order ->
-                viewModel.setSort3(fields[idx], order)
-                binding.btnSort3.text = "${fields[idx].label} ${if (order == SortOrder.DESC) "↓" else "↑"}"
+            showSortDialog(getString(R.string.sort_tertiary)) { field, order ->
+                viewModel.setSort3(field, order)
+                binding.btnSort3.text = "${field.label} ${if (order == SortOrder.DESC) "↓" else "↑"}"
             }
         }
-
-        // Defaults
-        binding.btnSort1.text = "${SortField.PRIORITY.label} ↓"
-        binding.btnSort2.text = "${SortField.DUE_DATE.label} ↑"
-        binding.btnSort3.text = getString(R.string.sort_none)
-    }
-
-    private fun showSortDialog(title: String, fieldNames: Array<String>, onSelected: (Int, SortOrder) -> Unit) {
-        var selectedIdx = 0
-        var selectedOrder = SortOrder.ASC
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(title)
-            .setSingleChoiceItems(fieldNames, 0) { _, idx -> selectedIdx = idx }
-            .setNeutralButton("↓ DESC") { _, _ -> onSelected(selectedIdx, SortOrder.DESC) }
-            .setPositiveButton("↑ ASC") { _, _ -> onSelected(selectedIdx, SortOrder.ASC) }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
     }
 
     private fun observeViewModel() {
@@ -101,8 +98,7 @@ class HotListFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.hotList.collect { tasks ->
                     taskAdapter.submitList(tasks)
-                    binding.emptyState.visibility =
-                        if (tasks.isEmpty()) View.VISIBLE else View.GONE
+                    binding.emptyState.visibility = if (tasks.isEmpty()) View.VISIBLE else View.GONE
                     binding.tvTaskCount.text = "${tasks.size} ${getString(R.string.tasks)}"
                 }
             }

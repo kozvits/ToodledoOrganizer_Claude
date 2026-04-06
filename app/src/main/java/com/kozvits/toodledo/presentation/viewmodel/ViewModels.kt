@@ -3,6 +3,7 @@ package com.kozvits.toodledo.presentation.viewmodel
 import androidx.lifecycle.*
 import com.kozvits.toodledo.domain.model.*
 import com.kozvits.toodledo.domain.usecase.*
+import com.kozvits.toodledo.presentation.ui.TaskFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -61,20 +62,8 @@ class TaskListViewModel @Inject constructor(
     fun clearSearch() { _searchQuery.value = "" }
     fun setFilter(filter: TaskFilter) { _activeFilter.value = filter }
     fun toggleShowCompleted() { _showCompleted.value = !_showCompleted.value }
-
-    fun completeTask(id: Long) = viewModelScope.launch {
-        completeTaskUseCase(id)
-    }
-
-    fun deleteTask(id: Long) = viewModelScope.launch {
-        deleteTaskUseCase(id)
-    }
-}
-
-sealed class TaskFilter {
-    object All : TaskFilter()
-    data class ByFolder(val folderId: Long, val name: String) : TaskFilter()
-    data class ByContext(val contextId: Long, val name: String) : TaskFilter()
+    fun completeTask(id: Long) = viewModelScope.launch { completeTaskUseCase(id) }
+    fun deleteTask(id: Long) = viewModelScope.launch { deleteTaskUseCase(id) }
 }
 
 // ─── Edit Task ────────────────────────────────────────────────────────────────
@@ -101,25 +90,23 @@ class EditTaskViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun loadTask(id: Long) = viewModelScope.launch {
-        if (id > 0) {
-            getTaskByIdUseCase(id)?.let { _task.value = it }
-        }
+        if (id > 0L) getTaskByIdUseCase(id)?.let { _task.value = it }
     }
 
-    fun updateTitle(v: String) { _task.value = _task.value?.copy(title = v) }
-    fun updateNote(v: String) { _task.value = _task.value?.copy(note = v) }
-    fun updatePriority(v: Priority) { _task.value = _task.value?.copy(priority = v) }
-    fun updateStatus(v: TaskStatus) { _task.value = _task.value?.copy(status = v) }
-    fun updateFolder(id: Long, name: String) { _task.value = _task.value?.copy(folderId = id, folderName = name) }
+    fun updateTitle(v: String)                { _task.value = _task.value?.copy(title = v) }
+    fun updateNote(v: String)                 { _task.value = _task.value?.copy(note = v) }
+    fun updatePriority(v: Priority)           { _task.value = _task.value?.copy(priority = v) }
+    fun updateStatus(v: TaskStatus)           { _task.value = _task.value?.copy(status = v) }
+    fun updateFolder(id: Long, name: String)  { _task.value = _task.value?.copy(folderId = id, folderName = name) }
     fun updateContext(id: Long, name: String) { _task.value = _task.value?.copy(contextId = id, contextName = name) }
-    fun updateDueDate(ts: Long) { _task.value = _task.value?.copy(dueDate = ts) }
-    fun updateStartDate(ts: Long) { _task.value = _task.value?.copy(startDate = ts) }
-    fun updateRepeat(v: RepeatType) { _task.value = _task.value?.copy(repeat = v) }
-    fun updateStar(v: Boolean) { _task.value = _task.value?.copy(star = v) }
-    fun updateHot(v: Boolean) { _task.value = _task.value?.copy(isHot = v) }
-    fun updateTag(v: String) { _task.value = _task.value?.copy(tag = v) }
-    fun updateLength(v: Int) { _task.value = _task.value?.copy(length = v) }
-    fun updateRemind(v: Long) { _task.value = _task.value?.copy(remind = v) }
+    fun updateDueDate(ts: Long)               { _task.value = _task.value?.copy(dueDate = ts) }
+    fun updateStartDate(ts: Long)             { _task.value = _task.value?.copy(startDate = ts) }
+    fun updateRepeat(v: RepeatType)           { _task.value = _task.value?.copy(repeat = v) }
+    fun updateStar(v: Boolean)                { _task.value = _task.value?.copy(star = v) }
+    fun updateHot(v: Boolean)                 { _task.value = _task.value?.copy(isHot = v) }
+    fun updateTag(v: String)                  { _task.value = _task.value?.copy(tag = v) }
+    fun updateLength(v: Int)                  { _task.value = _task.value?.copy(length = v) }
+    fun updateRemind(v: Long)                 { _task.value = _task.value?.copy(remind = v) }
 
     fun save() = viewModelScope.launch {
         val t = _task.value ?: return@launch
@@ -153,12 +140,8 @@ class HotListViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setSort1(field: SortField, order: SortOrder) { _sort1.value = SortConfig(field, order) }
-    fun setSort2(field: SortField?, order: SortOrder) {
-        _sort2.value = field?.let { SortConfig(it, order) }
-    }
-    fun setSort3(field: SortField?, order: SortOrder) {
-        _sort3.value = field?.let { SortConfig(it, order) }
-    }
+    fun setSort2(field: SortField?, order: SortOrder) { _sort2.value = field?.let { SortConfig(it, order) } }
+    fun setSort3(field: SortField?, order: SortOrder) { _sort3.value = field?.let { SortConfig(it, order) } }
 
     fun completeTask(id: Long) = viewModelScope.launch { completeTaskUseCase(id) }
 }
@@ -180,9 +163,7 @@ class SyncViewModel @Inject constructor(
     val settings: LiveData<SyncSettings> = _settings
 
     init {
-        viewModelScope.launch {
-            _settings.value = getSyncSettingsUseCase()
-        }
+        viewModelScope.launch { _settings.value = getSyncSettingsUseCase() }
     }
 
     fun syncNow() = viewModelScope.launch { syncNowUseCase() }

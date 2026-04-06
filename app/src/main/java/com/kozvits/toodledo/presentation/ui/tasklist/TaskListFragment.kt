@@ -3,6 +3,7 @@ package com.kozvits.toodledo.presentation.ui.tasklist
 import android.os.Bundle
 import android.view.*
 import androidx.appcompat.widget.SearchView
+import androidx.core.os.bundleOf
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
@@ -18,8 +19,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.kozvits.toodledo.R
 import com.kozvits.toodledo.databinding.FragmentTaskListBinding
-import com.kozvits.toodledo.domain.model.TaskFilter
 import com.kozvits.toodledo.presentation.adapter.TaskAdapter
+import com.kozvits.toodledo.presentation.ui.TaskFilter
 import com.kozvits.toodledo.presentation.viewmodel.TaskListViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -32,7 +33,9 @@ class TaskListFragment : Fragment() {
     private val viewModel: TaskListViewModel by viewModels()
     private lateinit var taskAdapter: TaskAdapter
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentTaskListBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -46,12 +49,14 @@ class TaskListFragment : Fragment() {
         observeViewModel()
     }
 
+    private fun navigateToEdit(taskId: Long) {
+        val bundle = bundleOf("taskId" to taskId)
+        findNavController().navigate(R.id.editTaskFragment, bundle)
+    }
+
     private fun setupRecyclerView() {
         taskAdapter = TaskAdapter(
-            onTaskClick = { task ->
-                val action = TaskListFragmentDirections.actionTaskListToEditTask(task.id)
-                findNavController().navigate(action)
-            },
+            onTaskClick = { task -> navigateToEdit(task.id) },
             onCheckClick = { task -> viewModel.completeTask(task.id) }
         )
         binding.recyclerView.apply {
@@ -59,33 +64,31 @@ class TaskListFragment : Fragment() {
             adapter = taskAdapter
         }
 
-        // Свайп влево — удалить, вправо — завершить
-        ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0,
-            ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
+        ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+            0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+        ) {
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder,
+                                t: RecyclerView.ViewHolder) = false
+
             override fun onSwiped(vh: RecyclerView.ViewHolder, dir: Int) {
                 val task = taskAdapter.getTaskAt(vh.adapterPosition)
                 if (dir == ItemTouchHelper.RIGHT) {
                     viewModel.completeTask(task.id)
-                    Snackbar.make(binding.root, getString(R.string.task_completed), Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(binding.root, R.string.task_completed, Snackbar.LENGTH_SHORT).show()
                 } else {
                     viewModel.deleteTask(task.id)
-                    Snackbar.make(binding.root, getString(R.string.task_deleted), Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(binding.root, R.string.task_deleted, Snackbar.LENGTH_SHORT).show()
                 }
             }
         }).attachToRecyclerView(binding.recyclerView)
     }
 
     private fun setupFab() {
-        binding.fabAddTask.setOnClickListener {
-            val action = TaskListFragmentDirections.actionTaskListToEditTask(0L)
-            findNavController().navigate(action)
-        }
+        binding.fabAddTask.setOnClickListener { navigateToEdit(0L) }
     }
 
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
-            // Синхронизация запускается через SyncViewModel
             binding.swipeRefresh.isRefreshing = false
         }
     }
@@ -108,22 +111,10 @@ class TaskListFragment : Fragment() {
 
             override fun onMenuItemSelected(item: MenuItem): Boolean {
                 return when (item.itemId) {
-                    R.id.action_filter_folder -> {
-                        showFolderFilterDialog()
-                        true
-                    }
-                    R.id.action_filter_context -> {
-                        showContextFilterDialog()
-                        true
-                    }
-                    R.id.action_show_completed -> {
-                        viewModel.toggleShowCompleted()
-                        true
-                    }
-                    R.id.action_clear_filter -> {
-                        viewModel.setFilter(TaskFilter.All)
-                        true
-                    }
+                    R.id.action_filter_folder -> { showFolderFilterDialog(); true }
+                    R.id.action_filter_context -> { showContextFilterDialog(); true }
+                    R.id.action_show_completed -> { viewModel.toggleShowCompleted(); true }
+                    R.id.action_clear_filter -> { viewModel.setFilter(TaskFilter.All); true }
                     else -> false
                 }
             }
@@ -132,12 +123,13 @@ class TaskListFragment : Fragment() {
 
     private fun showFolderFilterDialog() {
         val folders = viewModel.folders.value
+        if (folders.isEmpty()) return
         val names = folders.map { it.name }.toTypedArray()
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.filter_by_folder)
             .setItems(names) { _, idx ->
-                val folder = folders[idx]
-                viewModel.setFilter(TaskFilter.ByFolder(folder.id, folder.name))
+                val f = folders[idx]
+                viewModel.setFilter(TaskFilter.ByFolder(f.id, f.name))
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -145,12 +137,13 @@ class TaskListFragment : Fragment() {
 
     private fun showContextFilterDialog() {
         val contexts = viewModel.contexts.value
+        if (contexts.isEmpty()) return
         val names = contexts.map { it.name }.toTypedArray()
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.filter_by_context)
             .setItems(names) { _, idx ->
-                val ctx = contexts[idx]
-                viewModel.setFilter(TaskFilter.ByContext(ctx.id, ctx.name))
+                val c = contexts[idx]
+                viewModel.setFilter(TaskFilter.ByContext(c.id, c.name))
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
