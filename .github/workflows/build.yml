@@ -26,7 +26,6 @@ jobs:
       - name: Setup Gradle wrapper if missing
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Downloading gradle-wrapper.jar..."
             mkdir -p gradle/wrapper
             curl -sL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
               -o gradle/wrapper/gradle-wrapper.jar
@@ -49,7 +48,7 @@ jobs:
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: ToodledoOrganiser-debug-${{ github.sha }}
+          name: ToodledoOrganiser-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
